@@ -1,12 +1,9 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import type { RpcInput } from "@getpaseo/plugin";
 import type { PluginHandlerContext } from "@getpaseo/plugin/server";
 import type { openSideRpc } from "../shared/side";
 import { forkClaudeTranscript } from "./claude-fork";
+import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
 import { withLocalDaemon } from "./local-daemon";
-
-const execFileAsync = promisify(execFile);
 
 // Adapted from Codex's side conversation boundary and policy
 // (codex-rs/context-fragments/src/side_conversation.rs).
@@ -24,6 +21,9 @@ Do not modify files, source, git state, permissions, configuration, or other wor
 
 /**
  * Branches a Claude Code agent into a side agent that resumes a native fork of its session.
+ *
+ * The side agent is the parent's subagent: it waits in the parent's subagent track instead of
+ * opening a tab, and opens beside the parent when the subagent open location is set to the side.
  *
  * Importing the fork shows its history. The side agent then repeats the parent's directory,
  * model, mode, thinking option and provider options, and changes no tools, so its first request
@@ -50,7 +50,7 @@ export async function openSide(
       sessionId: forkId,
       cwd: parent.cwd,
       ...(parent.workspaceId ? { workspaceId: parent.workspaceId } : {}),
-      labels: { side: parent.id },
+      labels: { side: parent.id, [PARENT_AGENT_ID_LABEL]: parent.id },
     });
     // An import starts from Paseo's defaults; any setting left different would change the request.
     if (parent.model) await daemon.setAgentModel(side.id, parent.model);
@@ -61,11 +61,5 @@ export async function openSide(
     return side.id;
   });
   if (prompt) await paseo.agents.ref(sideId).send(prompt);
-
-  const cli = process.env.PASEO_CLI;
-  if (!cli) {
-    throw new Error(`旁路会话 ${sideId} 已建好，但没有 PASEO_CLI 环境变量，打不开标签页（只支持 Paseo 桌面端）`);
-  }
-  await execFileAsync(cli, ["agent", "open", sideId]);
   return { agentId: sideId };
 }
