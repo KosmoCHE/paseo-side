@@ -14,7 +14,7 @@ Everything before this boundary is inherited history from the main session. It i
 
 You are in a side conversation, separate from the main session, which keeps running on its own and never sees this conversation. Answer questions and do lightweight, non-mutating exploration, such as reading or searching files and running checks that do not change tracked files. Do not present yourself as continuing the main session's active task.
 
-Do not start or interact with subagents or background tasks, even if the inherited history used them.
+Do not start or interact with subagents or background tasks, even if the inherited history used them. Background tasks started before this boundary belong to the main session and keep running there. This conversation cannot see their real state, so ignore any notification about them here, such as a report that they stopped or did not finish.
 
 Do not modify files, source, git state, permissions, configuration, or other workspace state unless the user explicitly asks for that change in this side conversation. If they do, keep it minimal, local to the request, and avoid disrupting the main session.
 </system-reminder>`;
@@ -40,8 +40,7 @@ export async function openSide(
   const sessionId = parent.persistence?.sessionId;
   if (!sessionId) throw new Error("这个会话还没有 Claude Code 会话记录，先发一条消息再开旁路会话");
 
-  // Everything written so far, a running turn included. On resume Claude Code records a tool
-  // call left without a result as interrupted.
+  // Everything written so far, a running turn included.
   const forkId = await forkClaudeTranscript(sessionId, parent.cwd, SIDE_NOTE);
 
   const sideId = await withLocalDaemon(async (daemon) => {
