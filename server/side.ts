@@ -1,9 +1,18 @@
 import type { RpcInput } from "@getpaseo/plugin";
-import type { PluginHandlerContext } from "@getpaseo/plugin/server";
+import type {
+  PluginHandlerContext,
+  PluginHookContext,
+  PluginHookPayload,
+} from "@getpaseo/plugin/server";
 import type { openSideRpc } from "../shared/side";
 import { forkClaudeTranscript } from "./claude-fork";
 import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
 import { withLocalDaemon } from "./local-daemon";
+
+// Set on a side agent opened without a message, which is named after its main agent alone; holds
+// that name until the first message gives it a topic.
+const UNNAMED = "side.unnamedTitle";
+const TOPIC_CHARS = 20;
 
 // Adapted from Codex's side conversation boundary and policy
 // (codex-rs/context-fragments/src/side_conversation.rs).
@@ -43,6 +52,8 @@ export async function openSide(
   // Everything written so far, a running turn included.
   const forkId = await forkClaudeTranscript(sessionId, parent.cwd, SIDE_NOTE);
 
+  const baseTitle = `side: ${parent.title ?? parent.id.slice(0, 8)}`;
+  const title = withTopic(baseTitle, prompt);
   const sideId = await withLocalDaemon(async (daemon) => {
     const side = await daemon.importAgent({
       provider: parent.provider,
@@ -56,9 +67,42 @@ export async function openSide(
     if (parent.currentModeId) await daemon.setAgentMode(side.id, parent.currentModeId);
     await daemon.setAgentThinkingOption(side.id, parent.thinkingOptionId ?? null);
     if (parent.options) await daemon.setAgentOptions(side.id, parent.options as Record<string, unknown>);
-    await daemon.updateAgent(side.id, { name: `side: ${parent.title ?? parent.id.slice(0, 8)}` });
+    await daemon.updateAgent(side.id, { name: title });
     return side.id;
   });
+  if (title === baseTitle) await paseo.agents.ref(sideId).setMetadata({ [UNNAMED]: baseTitle });
   if (prompt) await paseo.agents.ref(sideId).send(prompt);
   return { agentId: sideId };
+}
+
+/** Adds the topic of its first message to the name of a side agent opened without one. */
+export async function nameSideAfterFirstMessage(
+  { agent, turnId }: PluginHookPayload<"agent.turn.after">,
+  { paseo }: PluginHookContext,
+) {
+  const baseTitle = agent.metadata[UNNAMED];
+  if (typeof baseTitle !== "string" || !turnId) return;
+  const side = paseo.agents.ref(agent.id);
+  const page = await side.timeline.refetch({ direction: "tail", limit: 1, wholeTurns: true });
+  if (!page.agent) throw new Error(`读不到旁路会话 ${agent.id} 的当前名字`);
+  let message: string | undefined;
+  for (const entry of page.entries) {
+    if (entry.turnId === turnId && entry.item.type === "user_message") message = entry.item.text;
+  }
+  // A turn the user did not start, such as a task notification.
+  if (message === undefined) return;
+  const title = withTopic(baseTitle, message);
+  // A slash command names no topic; wait for the next message.
+  if (title === baseTitle) return;
+  // A name the user gave in the meantime stays. The hook's `agent.title` is not the shown name.
+  if (page.agent.title === baseTitle) await withLocalDaemon((daemon) => daemon.updateAgent(agent.id, { name: title }));
+  await side.setMetadata({ [UNNAMED]: null });
+}
+
+/** `title` followed by the start of the first line of `message`, unless that line is a slash command. */
+function withTopic(title: string, message: string): string {
+  const line = message.split("\n").map((text) => text.trim()).find(Boolean);
+  if (!line || line.startsWith("/")) return title;
+  const chars = Array.from(line.replace(/\s+/g, " "));
+  return `${title} · ${chars.slice(0, TOPIC_CHARS).join("")}${chars.length > TOPIC_CHARS ? "…" : ""}`;
 }
