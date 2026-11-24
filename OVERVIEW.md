@@ -1,6 +1,6 @@
 在 Claude Code 会话的输入框里输入 `/side`，把当前对话原样分叉成一个旁路会话，标题是 `side: <原会话名称>`，能看到之前的历史。主会话不受影响，也看不到旁路会话里发生的事。`/side` 后面写的话会作为旁路会话的第一条消息发出；不写就等你输入。
 
-旁路会话是主会话的子 agent，建好后不会自动打开，出现在主会话输入框上方的子 agent 列表里，点它打开。想让它开在右边：设置 → Open location →「Clicking a subagent in an agent chat」选 On the side。主会话归档时旁路会话一起归档，子 agent 列表的「Archive finished subagents」也会归档空闲的旁路会话。
+旁路会话是主会话的子 agent，建好后不会自动打开，出现在主会话输入框上方的子 agent 列表里，点它打开。想让它开在右边：设置 → Open location →「Clicking a subagent in an agent chat」选 On the side。主会话归档时，没打开的旁路会话一起归档，打开着的会解除从属、留下来，子 agent 列表的「Archive finished subagents」也会归档空闲的旁路会话。
 
 旁路会话的规则仿照 Codex 的 `/side`：继承来的历史后面接一段隐藏的说明，告诉模型分界线之前的内容只作参考，不要接着执行里面的任务；它在旁路会话里答问题、做不改动东西的查看，不碰子 agent 和后台任务，只有你在旁路会话里明确要求时才改文件、git 状态或配置。
 
