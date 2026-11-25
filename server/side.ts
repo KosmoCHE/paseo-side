@@ -15,7 +15,7 @@ const UNNAMED = "side.unnamedTitle";
 const TOPIC_CHARS = 20;
 
 // Adapted from Codex's side conversation boundary and policy
-// (codex-rs/context-fragments/src/side_conversation.rs).
+// (codex-rs/context-fragments/src/side_conversation.rs), © OpenAI, under the Apache License 2.0.
 const SIDE_NOTE = `<system-reminder>
 Side conversation boundary.
 

@@ -86,6 +86,6 @@ npm run typecheck
 paseo plugin reload side
 ```
 
-## Credits
+## Credits and licence
 
-The side note is adapted from Codex's side conversation boundary and policy, in [`codex-rs/context-fragments/src/side_conversation.rs`](https://github.com/openai/codex/blob/main/codex-rs/context-fragments/src/side_conversation.rs), © OpenAI, under the [Apache License 2.0](https://github.com/openai/codex/blob/main/LICENSE).
+The plugin is under the MIT License, in [LICENSE](LICENSE), except for the side note in `server/side.ts`. The side note is adapted from Codex's side conversation boundary and policy, in [`codex-rs/context-fragments/src/side_conversation.rs`](https://github.com/openai/codex/blob/main/codex-rs/context-fragments/src/side_conversation.rs), © OpenAI, under the [Apache License 2.0](https://github.com/openai/codex/blob/main/LICENSE), and stays under that licence.
