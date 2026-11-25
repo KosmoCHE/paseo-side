@@ -10,13 +10,11 @@ const UNFINISHED_TOOL_RESULT =
   "No result: this call was still running in the main session when the side conversation started, and its result stays there.";
 
 /**
- * Copies a Claude Code transcript from its last compaction on (all of it when never compacted)
- * beside the original under a new session id, ends the copy with `note` as a hidden user message,
- * and returns the new id.
+ * Copies a Claude Code transcript beside the original under a new session id, ends the copy with
+ * `note` as a hidden user message, and returns the new id.
  *
- * Claude Code sends the model nothing older than the last compaction, and only each entry's own
- * `sessionId` changes, so a session resumed from the copy sends the model the same messages as the
- * original, followed by the note. An entry a running turn is still
+ * Only each entry's own `sessionId` changes, so a session resumed from the copy sends the model
+ * the same messages as the original, followed by the note. An entry a running turn is still
  * writing is left out, and each tool call the running turn is still waiting on gets a failed
  * result, so neither the model nor the timeline takes it for running.
  */
@@ -30,7 +28,7 @@ export async function forkClaudeTranscript(
   // Claude Code ends every entry with a newline; text after the last one is still being written.
   const lines = text.slice(0, text.lastIndexOf("\n") + 1).split("\n").filter((line) => line.trim());
   const forkId = randomUUID();
-  const all = lines.map((line, index): Entry => {
+  const entries = lines.map((line, index): Entry => {
     try {
       const entry: Entry = JSON.parse(line);
       return entry.sessionId === sessionId ? { ...entry, sessionId: forkId } : entry;
@@ -38,7 +36,6 @@ export async function forkClaudeTranscript(
       throw new Error(`${source} 第 ${index + 1} 行不是合法的 JSON`, { cause: error });
     }
   });
-  const entries = sinceLastCompaction(all, source);
   const lastMessage = entries.findLast((entry) => entry.type === "user" || entry.type === "assistant");
   if (!lastMessage) throw new Error(`${source} 里还没有对话消息`);
   // Claude Code appends each entry to the last one of the main chain.
@@ -67,34 +64,6 @@ export async function forkClaudeTranscript(
     { flag: "wx" },
   );
   return forkId;
-}
-
-/**
- * The entries from the main chain's last compaction on: the messages it preserved, which sit just
- * above its boundary and which Claude Code links after the summary, the boundary and the rest.
- */
-function sinceLastCompaction(entries: Entry[], source: string): Entry[] {
-  const boundary = entries.findLastIndex(
-    (entry) => entry.type === "system" && entry.subtype === "compact_boundary" && entry.isSidechain !== true,
-  );
-  if (boundary === -1) return entries;
-  const metadata = entries[boundary].compactMetadata as Entry | undefined;
-  // A compaction that preserved no messages, such as a manual /compact, has no segment.
-  const head = (metadata?.preservedSegment as Entry | undefined)?.headUuid;
-  const headIndex = typeof head === "string" ? entries.findIndex((entry) => entry.uuid === head) : boundary;
-  if (headIndex === -1) throw new Error(`${source} 里找不到最近一次 compact 保留的第一条消息 ${head}`);
-  const kept = entries.slice(Math.min(headIndex, boundary));
-  // Only the first preserved message may point above the cut; Claude Code relinks it.
-  const uuids = new Set(kept.map((entry) => entry.uuid));
-  const orphan = kept.find(
-    (entry) =>
-      entry.isSidechain !== true &&
-      typeof entry.parentUuid === "string" &&
-      !uuids.has(entry.parentUuid) &&
-      entry.uuid !== head,
-  );
-  if (orphan) throw new Error(`${source} 里 ${orphan.uuid} 接在最近一次 compact 之前的条目后面，不知道怎么截断`);
-  return kept;
 }
 
 /** Tool calls of the main chain's last assistant message that have no result yet. */
