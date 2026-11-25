@@ -61,7 +61,7 @@ export async function forkClaudeTranscript(
   await writeFile(
     path.join(path.dirname(source), `${forkId}.jsonl`),
     `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`,
-    { flag: "wx" },
+    { flag: "wx", mode: 0o600 },
   );
   return forkId;
 }
