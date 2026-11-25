@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { readdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, readdir, readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { forkSession } from "@anthropic-ai/claude-agent-sdk";
 
 type Entry = Record<string, unknown>;
 
@@ -10,37 +11,36 @@ const UNFINISHED_TOOL_RESULT =
   "No result: this call was still running in the main session when the side conversation started, and its result stays there.";
 
 /**
- * Copies a Claude Code transcript beside the original under a new session id, ends the copy with
- * `note` as a hidden user message, and returns the new id.
+ * Forks a Claude Code session with the Claude Agent SDK, which copies the whole transcript under
+ * new session and message ids, ends the fork with `note` as a hidden user message, and returns the
+ * new session id.
  *
- * Only each entry's own `sessionId` changes, so a session resumed from the copy sends the model
- * the same messages as the original, followed by the note. An entry a running turn is still
- * writing is left out, and each tool call the running turn is still waiting on gets a failed
- * result, so neither the model nor the timeline takes it for running.
+ * Claude Code sends the model nothing older than the last compaction and the fork changes no
+ * message content, so a session resumed from it sends the model the same messages as the
+ * original, followed by the note. The SDK leaves out an entry a running turn is still writing;
+ * each tool call the running turn is still waiting on gets a failed result here, so neither the
+ * model nor the timeline takes it for running.
  */
 export async function forkClaudeTranscript(
   sessionId: string,
   cwd: string,
   note: string,
 ): Promise<string> {
-  const source = await findTranscript(sessionId, cwd);
-  const text = await readFile(source, "utf8");
-  // Claude Code ends every entry with a newline; text after the last one is still being written.
-  const lines = text.slice(0, text.lastIndexOf("\n") + 1).split("\n").filter((line) => line.trim());
-  const forkId = randomUUID();
-  const entries = lines.map((line, index): Entry => {
-    try {
-      const entry: Entry = JSON.parse(line);
-      return entry.sessionId === sessionId ? { ...entry, sessionId: forkId } : entry;
-    } catch (error) {
-      throw new Error(`${source} 第 ${index + 1} 行不是合法的 JSON`, { cause: error });
-    }
+  const { sessionId: forkId } = await forkSession(sessionId).catch((error: Error) => {
+    throw new Error(`复制会话 ${sessionId} 失败，旁路会话只支持 Claude Code：${error.message}`, { cause: error });
   });
+  const file = await findTranscript(forkId, cwd);
+  const text = await readFile(file, "utf8");
+  if (!text.endsWith("\n")) throw new Error(`${file} 没有以换行结尾，不能往后追加`);
+  const entries = text
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line): Entry => JSON.parse(line));
   const lastMessage = entries.findLast((entry) => entry.type === "user" || entry.type === "assistant");
-  if (!lastMessage) throw new Error(`${source} 里还没有对话消息`);
-  // Claude Code appends each entry to the last one of the main chain.
-  let leaf = entries.findLast((entry) => typeof entry.uuid === "string" && entry.isSidechain !== true)!
-    .uuid as string;
+  if (!lastMessage) throw new Error(`${file} 里还没有对话消息`);
+  // The SDK marks every message it copies; its session records come after them.
+  let leaf = entries.findLast((entry) => entry.forkedFrom !== undefined)!.uuid as string;
+  const added: Entry[] = [];
   const unfinished = unfinishedToolUses(entries);
   if (unfinished.length > 0) {
     const results = userMessage(
@@ -54,21 +54,17 @@ export async function forkClaudeTranscript(
       forkId,
       lastMessage,
     );
-    entries.push(results);
+    added.push(results);
     leaf = results.uuid as string;
   }
-  entries.push({ ...userMessage(note, leaf, forkId, lastMessage), isMeta: true });
-  await writeFile(
-    path.join(path.dirname(source), `${forkId}.jsonl`),
-    `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`,
-    { flag: "wx" },
-  );
+  added.push({ ...userMessage(note, leaf, forkId, lastMessage), isMeta: true });
+  await appendFile(file, added.map((entry) => `${JSON.stringify(entry)}\n`).join(""));
   return forkId;
 }
 
-/** Tool calls of the main chain's last assistant message that have no result yet. */
+/** Tool calls of the last assistant message that have no result yet. */
 function unfinishedToolUses(entries: Entry[]): string[] {
-  const assistant = entries.filter((entry) => entry.type === "assistant" && entry.isSidechain !== true);
+  const assistant = entries.filter((entry) => entry.type === "assistant");
   const lastId = (assistant.at(-1)?.message as Entry | undefined)?.id;
   if (lastId === undefined) return [];
   const answered = new Set(
@@ -117,5 +113,5 @@ async function findTranscript(sessionId: string, cwd: string): Promise<string> {
     const candidate = path.join(projects, folder, `${sessionId}.jsonl`);
     if (existsSync(candidate)) return candidate;
   }
-  throw new Error(`在 ${projects} 下找不到会话 ${sessionId} 的记录，这个会话不是 Claude Code`);
+  throw new Error(`在 ${projects} 下找不到会话 ${sessionId} 的记录`);
 }
