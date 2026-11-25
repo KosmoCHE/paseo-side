@@ -1,8 +1,17 @@
 {
   "id": "side",
   "name": "Side",
+  "description": "Codex-style /side for Claude Code agents: fork the chat into a side agent that reuses the main session's prompt cache.",
   "media": [],
   "requirements": {
     "paseo": ">=0.17.3"
-  }
+  },
+  "build": [
+    [
+      "npm",
+      "ci",
+      "--omit=dev",
+      "--ignore-scripts"
+    ]
+  ]
 }
