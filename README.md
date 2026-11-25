@@ -10,14 +10,13 @@ A Codex-style `/side` for Claude Code agents in [Paseo](https://paseo.sh): ask a
 - A Claude Code agent, or one from a custom provider based on Claude Code
 - The plugin runs on the daemon's machine: it connects to the local daemon with the daemon home's `local-credential` (`$PASEO_HOME`, `~/.paseo` by default) to import the fork and set its model, mode and thinking option, which the plugin API does not offer
 
-## Install from a checkout
+## Install
 
 ```bash
-git clone https://github.com/KosmoCHE/paseo-side.git
-cd paseo-side
-npm install
-paseo plugin install "$(pwd)"
+paseo plugin install git:KosmoCHE/paseo-side
 ```
+
+Paseo runs `npm ci --omit=dev --ignore-scripts` from the manifest's `build` to install the runtime dependencies, so the daemon needs `npm` on its `PATH`.
 
 ## Use
 
@@ -70,6 +69,15 @@ The cache is shared only when both requests reach it:
 | `server/side.ts` | Opens the side agent, the side note, naming after the first message |
 | `server/claude-fork.ts` | Copies the Claude Code transcript |
 | `server/local-daemon.ts` | The plugin's own connection to the local daemon |
+
+Install from a checkout to work on it:
+
+```bash
+git clone https://github.com/KosmoCHE/paseo-side.git
+cd paseo-side
+npm install
+paseo plugin install "$(pwd)"
+```
 
 After a change:
 

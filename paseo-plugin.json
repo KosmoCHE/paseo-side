@@ -2,6 +2,11 @@
   "id": "side",
   "name": "Side",
   "description": "Codex-style /side for Claude Code agents: fork the chat into a side agent that reuses the main session's prompt cache.",
+  "translations": {
+    "zh-CN": {
+      "description": "仿 Codex 的 /side：把 Claude Code 会话分叉成旁路会话，复用主会话的 prompt cache。"
+    }
+  },
   "media": [],
   "requirements": {
     "paseo": ">=0.17.3"
