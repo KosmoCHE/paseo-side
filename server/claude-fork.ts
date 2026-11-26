@@ -11,7 +11,7 @@ const UNFINISHED_TOOL_RESULT =
 
 /**
  * Copies a Claude Code transcript beside the original under a new session id, ends the copy with
- * `note` as a hidden user message, and returns the new id.
+ * `note` as a hidden user message, names the copy `title` in Claude Code, and returns the new id.
  *
  * Only each entry's own `sessionId` changes, so a session resumed from the copy sends the model
  * the same messages as the original, followed by the note. An entry a running turn is still
@@ -22,6 +22,7 @@ export async function forkClaudeTranscript(
   sessionId: string,
   cwd: string,
   note: string,
+  title: string,
 ): Promise<string> {
   const source = await findTranscript(sessionId, cwd);
   const text = await readFile(source, "utf8");
@@ -58,6 +59,8 @@ export async function forkClaudeTranscript(
     leaf = results.uuid as string;
   }
   entries.push({ ...userMessage(note, leaf, forkId, lastMessage), isMeta: true });
+  // Claude Code names a session after its last title entry, and the copy carries the original's.
+  entries.push({ type: "custom-title", customTitle: title, sessionId: forkId });
   await writeFile(
     path.join(path.dirname(source), `${forkId}.jsonl`),
     `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`,

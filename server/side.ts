@@ -49,11 +49,10 @@ export async function openSide(
   const sessionId = parent.persistence?.sessionId;
   if (!sessionId) throw new Error("这个会话还没有 Claude Code 会话记录，先发一条消息再开旁路会话");
 
-  // Everything written so far, a running turn included.
-  const forkId = await forkClaudeTranscript(sessionId, parent.cwd, SIDE_NOTE);
-
   const baseTitle = `side: ${parent.title ?? parent.id.slice(0, 8)}`;
   const title = withTopic(baseTitle, prompt);
+  // Everything written so far, a running turn included.
+  const forkId = await forkClaudeTranscript(sessionId, parent.cwd, SIDE_NOTE, title);
   const sideId = await withLocalDaemon(async (daemon) => {
     const side = await daemon.importAgent({
       provider: parent.provider,

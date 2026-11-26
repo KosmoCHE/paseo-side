@@ -29,7 +29,7 @@ In a Claude Code agent's composer, type `/side`, optionally followed by a messag
 The message is sent as the side agent's first message. Without one, the side agent waits for you.
 
 - **Where it opens.** The side agent is a subagent of the main agent. It does not open by itself: it appears in the subagent list above the composer, and opens when you click it. To open it on the right of the main agent, set **Settings → Open location → Clicking a subagent in an agent chat** to **On the side**.
-- **Its name.** `side: <main agent's name> · <first message>`, with the first 20 characters of the first line of the first message. A side agent opened without a message gets its topic after your first message's turn ends; slash commands do not count, and a name you gave it in the meantime stays.
+- **Its name.** `side: <main agent's name> · <first message>`, with the first 20 characters of the first line of the first message. A side agent opened without a message gets its topic after your first message's turn ends; slash commands do not count, and a name you gave it in the meantime stays. In Claude Code's own session list, such as `claude --resume`, the session keeps the name it was opened with.
 - **While the main agent is running.** You can open a side agent at any time. It continues from what the main session has written so far. A tool call still running is recorded in the side agent as failed, saying its result stays in the main session, and the side agent ignores notifications about background tasks the main session started.
 - **Archiving.** When the main agent is archived, its side agents that are not open are archived with it, and open ones are detached and stay. **Archive finished subagents** in the subagent list also archives idle side agents.
 
