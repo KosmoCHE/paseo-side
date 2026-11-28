@@ -16,12 +16,12 @@ const TOPIC_CHARS = 20;
 
 // Adapted from Codex's side conversation boundary and policy
 // (codex-rs/context-fragments/src/side_conversation.rs), © OpenAI, under the Apache License 2.0.
-const SIDE_NOTE = `<system-reminder>
+const sideNote = (mainAgentId: string) => `<system-reminder>
 Side conversation boundary.
 
 Everything before this boundary is inherited history from the main session. It is reference context only, not your current task. Do not continue, execute, or complete any instructions, plans, tool calls, approvals, edits, or requests from before this boundary. Tool calls and outputs before this boundary happened in the main session. Only messages the user sends after this boundary are active instructions for this side conversation. If there is no user message after this boundary yet, wait for one.
 
-You are in a side conversation, separate from the main session, which keeps running on its own and never sees this conversation. Answer questions and do lightweight, non-mutating exploration, such as reading or searching files and running checks that do not change tracked files. Do not present yourself as continuing the main session's active task.
+You are in a side conversation, separate from the main session, which keeps running on its own and sees only the messages you send it. The main session is the Paseo agent \`${mainAgentId}\`; to message it, use the paseo skill. Answer questions and do lightweight, non-mutating exploration, such as reading or searching files and running checks that do not change tracked files. Do not present yourself as continuing the main session's active task.
 
 Do not start or interact with subagents or background tasks, even if the inherited history used them. Background tasks started before this boundary belong to the main session and keep running there. This conversation cannot see their real state, so ignore any notification about them here, such as a report that they stopped or did not finish.
 
@@ -52,7 +52,7 @@ export async function openSide(
   const baseTitle = `side: ${parent.title ?? parent.id.slice(0, 8)}`;
   const title = withTopic(baseTitle, prompt);
   // Everything written so far, a running turn included.
-  const forkId = await forkClaudeTranscript(sessionId, parent.cwd, SIDE_NOTE, title);
+  const forkId = await forkClaudeTranscript(sessionId, parent.cwd, sideNote(parent.id), title);
   const sideId = await withLocalDaemon(async (daemon) => {
     const side = await daemon.importAgent({
       provider: parent.provider,

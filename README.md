@@ -35,7 +35,7 @@ The message is sent as the side agent's first message. Without one, the side age
 
 ## What the side agent may do
 
-The rules follow Codex's `/side`. A hidden note after the inherited history tells the model that everything above it is reference only: it does not continue the main session's tasks, plans or tool calls. In the side conversation it answers questions and looks around without changing anything, keeps away from subagents and background tasks, and changes files, git state or configuration only when you ask for it there.
+The rules follow Codex's `/side`. A hidden note after the inherited history tells the model that everything above it is reference only: it does not continue the main session's tasks, plans or tool calls. In the side conversation it answers questions and looks around without changing anything, keeps away from subagents and background tasks, and changes files, git state or configuration only when you ask for it there. The note also gives the main agent's Paseo ID, so the side agent can message the main agent with the paseo skill.
 
 ## How it works
 
